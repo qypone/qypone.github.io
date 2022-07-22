@@ -1,0 +1,300 @@
+<!DOCTYPE html><html lang="zh-CN" data-theme="light"><head><meta charset="UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GC基本原理（Gabage Collection） | Er BaiShao</title><meta name="keywords" content="java"><meta name="author" content="Er BaiShao"><meta name="copyright" content="Er BaiShao"><meta name="format-detection" content="telephone=no"><meta name="theme-color" content="#ffffff"><meta name="description" content="基本原理、GCroot、标记清除算法">
+<meta property="og:type" content="article">
+<meta property="og:title" content="GC基本原理（Gabage Collection）">
+<meta property="og:url" content="https://qypone.github.io/posts/bffdd007/index.html">
+<meta property="og:site_name" content="Er BaiShao">
+<meta property="og:description" content="基本原理、GCroot、标记清除算法">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://qypone.github.io/img/go.jpg">
+<meta property="article:published_time" content="2022-01-04T23:09:00.000Z">
+<meta property="article:modified_time" content="2022-07-22T02:01:28.108Z">
+<meta property="article:author" content="Er BaiShao">
+<meta property="article:tag" content="java">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://qypone.github.io/img/go.jpg"><link rel="shortcut icon" href="/img/favicon_2.svg"><link rel="canonical" href="https://qypone.github.io/posts/bffdd007/"><link rel="preconnect" href="//cdn.jsdelivr.net"/><link rel="preconnect" href="//busuanzi.ibruce.info"/><link rel="stylesheet" href="/css/index.css"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" media="print" onload="this.media='all'"><script>const GLOBAL_CONFIG = { 
+  root: '/',
+  algolia: undefined,
+  localSearch: undefined,
+  translate: undefined,
+  noticeOutdate: undefined,
+  highlight: {"plugin":"highlighjs","highlightCopy":true,"highlightLang":true,"highlightHeightLimit":false},
+  copy: {
+    success: '复制成功',
+    error: '复制错误',
+    noSupport: '浏览器不支持'
+  },
+  relativeDate: {
+    homepage: false,
+    post: false
+  },
+  runtime: '',
+  date_suffix: {
+    just: '刚刚',
+    min: '分钟前',
+    hour: '小时前',
+    day: '天前',
+    month: '个月前'
+  },
+  copyright: undefined,
+  lightbox: 'fancybox',
+  Snackbar: undefined,
+  source: {
+    jQuery: 'https://cdn.jsdelivr.net/npm/jquery@latest/dist/jquery.min.js',
+    justifiedGallery: {
+      js: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/js/jquery.justifiedGallery.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/justifiedGallery/dist/css/justifiedGallery.min.css'
+    },
+    fancybox: {
+      js: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.js',
+      css: 'https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@latest/dist/jquery.fancybox.min.css'
+    }
+  },
+  isPhotoFigcaption: false,
+  islazyload: true,
+  isanchor: false
+}</script><script id="config-diff">var GLOBAL_CONFIG_SITE = {
+  title: 'GC基本原理（Gabage Collection）',
+  isPost: true,
+  isHome: false,
+  isHighlightShrink: false,
+  isToc: true,
+  postUpdate: '2022-07-22 02:01:28'
+}</script><noscript><style type="text/css">
+  #nav {
+    opacity: 1
+  }
+  .justified-gallery img {
+    opacity: 1
+  }
+
+  #recent-posts time,
+  #post-meta time {
+    display: inline !important
+  }
+</style></noscript><script>(win=>{
+    win.saveToLocal = {
+      set: function setWithExpiry(key, value, ttl) {
+        if (ttl === 0) return
+        const now = new Date()
+        const expiryDay = ttl * 86400000
+        const item = {
+          value: value,
+          expiry: now.getTime() + expiryDay,
+        }
+        localStorage.setItem(key, JSON.stringify(item))
+      },
+
+      get: function getWithExpiry(key) {
+        const itemStr = localStorage.getItem(key)
+
+        if (!itemStr) {
+          return undefined
+        }
+        const item = JSON.parse(itemStr)
+        const now = new Date()
+
+        if (now.getTime() > item.expiry) {
+          localStorage.removeItem(key)
+          return undefined
+        }
+        return item.value
+      }
+    }
+  
+    win.getScript = url => new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = url
+      script.async = true
+      script.onerror = reject
+      script.onload = script.onreadystatechange = function() {
+        const loadState = this.readyState
+        if (loadState && loadState !== 'loaded' && loadState !== 'complete') return
+        script.onload = script.onreadystatechange = null
+        resolve()
+      }
+      document.head.appendChild(script)
+    })
+  
+      win.activateDarkMode = function () {
+        document.documentElement.setAttribute('data-theme', 'dark')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0d0d0d')
+        }
+      }
+      win.activateLightMode = function () {
+        document.documentElement.setAttribute('data-theme', 'light')
+        if (document.querySelector('meta[name="theme-color"]') !== null) {
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#ffffff')
+        }
+      }
+      const t = saveToLocal.get('theme')
+    
+          if (t === 'dark') activateDarkMode()
+          else if (t === 'light') activateLightMode()
+        
+      const asideStatus = saveToLocal.get('aside-status')
+      if (asideStatus !== undefined) {
+        if (asideStatus === 'hide') {
+          document.documentElement.classList.add('hide-aside')
+        } else {
+          document.documentElement.classList.remove('hide-aside')
+        }
+      }
+    
+    const detectApple = () => {
+      if (GLOBAL_CONFIG_SITE.isHome && /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent)){
+        document.documentElement.classList.add('apple')
+      }
+    }
+    detectApple()
+    })(window)</script><meta name="generator" content="Hexo 6.0.0"></head><body><div id="sidebar"><div id="menu-mask"></div><div id="sidebar-menus"><div class="avatar-img is-center"><img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/img/touxiang.png" onerror="onerror=null;src='/img/friend_404.gif'" alt="avatar"/></div><div class="site-data"><div class="data-item is-center"><div class="data-item-link"><a href="/archives/"><div class="headline">文章</div><div class="length-num">39</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/tags/"><div class="headline">标签</div><div class="length-num">10</div></a></div></div><div class="data-item is-center"><div class="data-item-link"><a href="/categories/"><div class="headline">分类</div><div class="length-num">14</div></a></div></div></div><hr/><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div></div></div><div class="post" id="body-wrap"><header class="post-bg" id="page-header" style="background-image: url('/img/go.jpg')"><nav id="nav"><span id="blog_name"><a id="site-name" href="/">Er BaiShao</a></span><div id="menus"><div class="menus_items"><div class="menus_item"><a class="site-page" href="/"><i class="fa-fw fas fa-home"></i><span> 首页</span></a></div><div class="menus_item"><a class="site-page" href="/tags/"><i class="fa-fw fas fa-tags"></i><span> 标签</span></a></div><div class="menus_item"><a class="site-page" href="/categories/"><i class="fa-fw fas fa-folder-open"></i><span> 分类</span></a></div><div class="menus_item"><a class="site-page" href="/archives/"><i class="fa-fw fas fa-archive"></i><span> 时间轴</span></a></div><div class="menus_item"><a class="site-page" href="/link/"><i class="fa-fw fas fa-link"></i><span> 友链</span></a></div><div class="menus_item"><a class="site-page" href="/about/"><i class="fa-fw fas fa-heart"></i><span> 关于</span></a></div></div><div id="toggle-menu"><a class="site-page"><i class="fas fa-bars fa-fw"></i></a></div></div></nav><div id="post-info"><h1 class="post-title">GC基本原理（Gabage Collection）</h1><div id="post-meta"><div class="meta-firstline"><span class="post-meta-date"><i class="far fa-calendar-alt fa-fw post-meta-icon"></i><span class="post-meta-label">发表于</span><time class="post-meta-date-created" datetime="2022-01-04T23:09:00.000Z" title="发表于 2022-01-04 23:09:00">2022-01-04</time><span class="post-meta-separator">|</span><i class="fas fa-history fa-fw post-meta-icon"></i><span class="post-meta-label">更新于</span><time class="post-meta-date-updated" datetime="2022-07-22T02:01:28.108Z" title="更新于 2022-07-22 02:01:28">2022-07-22</time></span><span class="post-meta-categories"><span class="post-meta-separator">|</span><i class="fas fa-inbox fa-fw post-meta-icon"></i><a class="post-meta-categories" href="/categories/jvm/">jvm</a></span></div><div class="meta-secondline"><span class="post-meta-separator">|</span><span class="post-meta-pv-cv" id="" data-flag-title="GC基本原理（Gabage Collection）"><i class="far fa-eye fa-fw post-meta-icon"></i><span class="post-meta-label">阅读量:</span><span id="busuanzi_value_page_pv"></span></span></div></div></div></header><main class="layout" id="content-inner"><div id="post"><article class="post-content" id="article-container"><h2 id="为什么要有GC"><a href="#为什么要有GC" class="headerlink" title="为什么要有GC"></a>为什么要有GC</h2><p>内存资源是有限的</p>
+<h2 id="基本原理-标记清除算法"><a href="#基本原理-标记清除算法" class="headerlink" title="基本原理-标记清除算法"></a>基本原理-标记清除算法</h2><img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/posts/bffdd007/image-20220105210350723.png" class="" title="image-20220105210350723">
+
+<ul>
+<li><p>Marking（标记）: 遍历所有的可达对象，并在本地内存(native)中分门别类记下。 </p>
+</li>
+<li><p>Sweeping（清除）: 这一步保证了，不可达对象 所占用的内存，在之后进行内存分配时可以重用。 </p>
+<p>并行 GC 和 CMS 的基本原理。 </p>
+<p>优势：可以处理循环依赖，只扫描部分对象 </p>
+<p>除了清除，还要做压缩。 怎么才能标记和清除清楚上百万对象呢？ 答案就是 <strong>STW</strong>，让全世界停止下来。</p>
+</li>
+</ul>
+<h2 id="分代"><a href="#分代" class="headerlink" title="分代"></a>分代</h2><img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/posts/bffdd007/image-20220105210656637.png" class="" title="image-20220105210656637">
+
+<p>分代假设：大部分新生对象很快无用； 存活较长时间的对象，可能存活更长时间</p>
+<img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/posts/bffdd007/image-20220105210755810.png" class="" title="image-20220105210755810">
+
+<p>不同类型对象不同区域，不同策略处理。</p>
+<ul>
+<li>对象分配在新生代的 Eden 区， 标记阶段 Eden 区存活的对象就会复制到存活区； 两个存活区 from 和 to，互换角色。对象存活到一定周期会提升到老年代</li>
+<li>老年代默认都是存活对象，采用移动方式：<ol>
+<li>标记所有通过 GC roots 可达的对象；</li>
+<li>删除所有不可达对象；</li>
+<li>整理老年代空间中的内容，方法是将所有的存活对象复制，从老年代空间开始的地方依次存放</li>
+</ol>
+</li>
+</ul>
+<h2 id="可以作为-GC-Roots-的对象"><a href="#可以作为-GC-Roots-的对象" class="headerlink" title="可以作为 GC Roots 的对象"></a>可以作为 GC Roots 的对象</h2><ul>
+<li>当前正在执行的方法里的局部变量和 输入参数 </li>
+<li>活动线程（Active threads） </li>
+<li>所有类的静态字段（static field） </li>
+<li>JNI 引用</li>
+</ul>
+<img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/posts/bffdd007/image-20220107123949544.png" class="" title="image-20220107123949544">
+
+<h2 id="常见垃圾回收算法"><a href="#常见垃圾回收算法" class="headerlink" title="常见垃圾回收算法"></a>常见垃圾回收算法</h2><h3 id="标记清除"><a href="#标记清除" class="headerlink" title="标记清除"></a>标记清除</h3><h4 id="过程"><a href="#过程" class="headerlink" title="过程"></a>过程</h4><ul>
+<li>第一阶段：标记。从根结点出发遍历对象，对访问过的对象打上标记，表示该对象可达。</li>
+<li>第二阶段：清除。对那些没有标记的对象进行回收，这样使得不能利用的空间能够重新被利用，回收对象就是把对象作为分块，连接到被称为<code>空闲链表</code>的单向链表。之后再分配空间时只需遍历这个<strong>空闲链表</strong>就可以了找到分块了</li>
+</ul>
+<p>下图是标记前和标记后内存中堆的状态</p>
+<img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/posts/bffdd007/image-20220107142244464.png" class="" title="image-20220107142244464">
+
+<p>下图是清除阶段结束后堆的状态：</p>
+<img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/posts/bffdd007/image-20220107142340526.png" class="" title="image-20220107142340526">
+
+<h4 id="分配"><a href="#分配" class="headerlink" title="分配"></a>分配</h4><p>回收垃圾的目的是为了能再次分配，当程序申请分块时，怎样才能把大小合适的分块分配给程序呢？以下是分配策略</p>
+<blockquote>
+<p><code>First-fit</code>：发现大于等于 size的分块立刻返回<br><code>Best-fit</code>：找到大小和 size 相等的分块再返回<br>``Worst-fit`：找到最大的分块，然后分割成 size 大小和剩余大小（这种方法容易产生大量小的分块</p>
+</blockquote>
+<h4 id="合并"><a href="#合并" class="headerlink" title="合并"></a>合并</h4><p>根据分配策略的不同，分配过程中会出现大量小的分块，如果分块是连续的，我们就可以把小分块合并成一个大的分块，<code>合并是在清除阶段完成的</code>，包含了合并策略的清除代码如下</p>
+<h4 id="缺点"><a href="#缺点" class="headerlink" title="缺点"></a>缺点</h4><ul>
+<li>效率不算高</li>
+<li>在进行GC的时候，需要停止整个应用程序，导致用户体验差</li>
+<li>这种方式清理出来的空闲内存是不连续的，产生内存碎片。需要维护一个空闲列表。</li>
+<li>与<code>写时复制技术</code>不兼容</li>
+</ul>
+<blockquote>
+<p>写时复制（copy-on-write）是众多 UNIX 操作系统用到的内存优化的方法。比如在 Linux 系统中使用 fork() 函数复制进程时，大部分内存空间都不会被复制，只是复制进程，只有在内存中内容被改变时才会复制内存数据。</p>
+<p>但是如果使用标记清除算法，这时内存会被设置<code>标志位</code>，就会频繁发生不应该发生的复制</p>
+</blockquote>
+<h3 id="复制算法"><a href="#复制算法" class="headerlink" title="复制算法"></a>复制算法</h3><p>复制算法将内存划分为两个区间，在任意时间点，所有动态分配的对象都只能分配在其中一个区间（称为活动区间），而另外一个区间（称为空闲区间）则是空闲的</p>
+<p>当有效内存空间耗尽时，JVM将暂停程序运行，开启复制算法GC线程。<strong>接下来GC线程会将活动区间内的存活对象，全部复制到空闲区间，且严格按照内存地址依次排列，与此同时，GC线程将更新存活对象的内存引用地址指向新的内存地址</strong></p>
+<p> 在执行GC前, 内存长这样:</p>
+<img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/posts/bffdd007/image-20220107155358112.png" class="" title="image-20220107155358112">
+
+<p> 当执行GC后, 内存就变成这样了:</p>
+<img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/posts/bffdd007/image-20220107155420018.png" class="" title="image-20220107155420018">
+
+<p>很明显, <code>复制算法</code>解决了<code>标记清除</code>的一个大问题, 内存碎片化严重. 在这里, 根本不存在碎片化问题的好嘛. 其相比<code>标记清除</code>的优势还是有一些的:</p>
+<ol>
+<li><strong>内存不会发生碎片化</strong></li>
+<li><strong>最大暂停时间更短</strong>: <code>复制算法</code>只需要遍历所有的活动对象, 而不需要遍历堆, 比<code>标记清除</code>要少一个堆的遍历, 故而执行更快.</li>
+<li><strong>内存分配高效</strong>: <code>标记清除</code>是怎么分配内存的? 通过一个空闲地址的链表, 然后挨个找. 而<code>复制算法</code>将所有可分配的内存都放到一起了, 直接切割即可.</li>
+<li><strong>更好的局部访问</strong>: <code>复制算法</code>复制后将对象与子对象放到一起, 这样缓存在读取的时候就能够一起读取, 防止多次读取数据.</li>
+</ol>
+<p>当然, 缺点也很明显. 将堆一分为二, 使用效率急速下滑.</p>
+<ol>
+<li>堆的使用效率低, 只有1/2</li>
+<li>频繁的递归调用函数. 对栈的压力比较大, 但是我们都知道, 所有用递归能写的都可以换成循环来实现, 所以个人感觉这个并不是问题</li>
+</ol>
+<h3 id="标记整理"><a href="#标记整理" class="headerlink" title="标记整理"></a>标记整理</h3><p>标记/整理算法与标记/清除算法非常相似</p>
+<h4 id="过程-1"><a href="#过程-1" class="headerlink" title="过程"></a>过程</h4><p>标记：它的第一个阶段与标记/清除算法是一模一样的，均是遍历GC Roots，然后将存活的对象标记。</p>
+<p>整理：移动所有存活的对象，且按照内存地址次序依次排列，然后将末端内存地址以后的内存全部回收。因此，第二阶段才称为整理阶段</p>
+<p>在GC执行前的内存：</p>
+<img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/posts/bffdd007/image-20220107161436327.png" class="" title="image-20220107161436327">
+
+<p>GC执行后的内存：</p>
+<img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/posts/bffdd007/image-20220107161505712.png" class="" title="image-20220107161505712">
+
+<h4 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h4><p>如何实现上面的操作呢? 首先, 要将所有活动对象标记出来. 这是标记阶段, 跳过了, 跟<code>标记清除</code>一样操作就行. (这里每个对象都有一个<code>mark</code>属性, true为活动对象)</p>
+<p>标记完了, 那就剩下压缩操作了. 如何进行呢?</p>
+<ol>
+<li>遍历堆, 将所有活动对象挪到左边. 但是, 后面有对象引用了前边的对象, 你就找不到新的指针了, 因为那块地址很可能已经被覆盖了.</li>
+<li>….</li>
+</ol>
+<p>最后想了想, 还是得老老实实地三步走:</p>
+<ol>
+<li>遍历堆, 将所有对象通过计算得到新的地址并保存</li>
+<li>遍历堆, 将所有子对象的地址更新为新的地址, 同时更新根集合中的指针.</li>
+<li>遍历堆, 将对象集体迁移. 指针的问题都解决了, 可以将对象搬到新家了.</li>
+</ol>
+<h4 id="缺点-1"><a href="#缺点-1" class="headerlink" title="缺点"></a>缺点</h4><ul>
+<li>效率不高</li>
+</ul>
+<h2 id="GC算法总结"><a href="#GC算法总结" class="headerlink" title="GC算法总结"></a>GC算法总结</h2><p>三种算法的<strong>共同点</strong></p>
+<ol>
+<li><p>三个算法都基于根搜索算法去判断一个对象是否应该被回收，而支撑根搜索算法可以正常工作的理论依据，就是语法中变量作用域的相关内容。因此，要想防止内存泄露，最根本的办法就是掌握好变量作用域，而不应该使用前面内存管理杂谈一章中所提到的C/C++式内存管理方式。**</p>
+</li>
+<li><p>在GC线程开启时，或者说GC过程开始时，它们都要暂停应用程序（stop the world）</p>
+</li>
+</ol>
+<p><strong>区别</strong></p>
+<ul>
+<li><p>效率：复制算法&gt;标记/整理算法&gt;标记/清除算法（此处的效率只是简单的对比时间复杂度，实际情况不一定如此）。</p>
+</li>
+<li><p>内存整齐度：复制算法=标记/整理算法&gt;标记/清除算法。</p>
+</li>
+<li><p>内存利用率：标记/整理算法=标记/清除算法&gt;复制算法。</p>
+</li>
+</ul>
+<h2 id="分代垃圾回收"><a href="#分代垃圾回收" class="headerlink" title="分代垃圾回收"></a>分代垃圾回收</h2><h3 id="对象分类"><a href="#对象分类" class="headerlink" title="对象分类"></a>对象分类</h3><p>内存中的对象按照生命周期的长短大致可以分为三种，以下命名均为个人的命名。</p>
+<p>​     1、<strong>夭折对象</strong>：朝生夕灭的对象，通俗点讲就是活不了多久就得死的对象。</p>
+<p>​       <strong>例子</strong>：某一个方法的局域变量、循环内的临时变量等等。</p>
+<p>​     2、<strong>老不死对象</strong>：这类对象一般活的比较久，岁数很大还不死，但归根结底，老不死对象也几乎早晚要死的，但也只是几乎而已。</p>
+<p>​       <strong>例子</strong>：缓存对象、数据库连接对象、单例对象（单例模式）等等。</p>
+<p>​     3、<strong>不灭对象</strong>：此类对象一般一旦出生就几乎不死了，它们几乎会一直永生不灭，记得，只是几乎不灭而已。</p>
+<p>​       <strong>例子</strong>：String池中的对象（享元模式）、加载过的类信息等等。</p>
+<h3 id="对象对应的内存区域"><a href="#对象对应的内存区域" class="headerlink" title="对象对应的内存区域"></a>对象对应的内存区域</h3><p>夭折对象和老不死对象都在JAVA堆，而不灭对象在方法区。</p>
+<p>JAVA堆，JVM规范要求必须实现GC，然而JVM规范对方法区的GC并不做要求</p>
+<p>分代回收算法就是针对的JAVA堆而设计的</p>
+<h3 id="JAVA堆的对象回收"><a href="#JAVA堆的对象回收" class="headerlink" title="JAVA堆的对象回收"></a>JAVA堆的对象回收</h3><h4 id="夭折对象"><a href="#夭折对象" class="headerlink" title="夭折对象"></a>夭折对象</h4><p>这类对象朝生夕灭，存活时间短，还记得复制算法的使用要求吗？那就是对象存活率不能太高，因此<strong>夭折对象是最适合使用复制算法的</strong></p>
+<p>GC流程：</p>
+<img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/posts/bffdd007/image-20220107164813608.png" class="" title="image-20220107164813608">
+
+<ul>
+<li><strong>第一点是使用这样的方式，我们只浪费了10%的内存，这个是可以接受的，因为我们换来了内存的整齐排列与GC速度。</strong></li>
+<li><strong>第二点是，这个策略的前提是，每次存活的对象占用的内存不能超过这10%的大小，一旦超过，多出的对象将无法复制</strong>。</li>
+</ul>
+<p>​     为了解决上面的意外情况，也就是存活对象占用的内存太大时的情况，高手们将JAVA堆分成两部分来处理，上述三个区域则是第一部分，<strong>称为新生代或者年轻代</strong>。而余下的一部分，专门存放老不死对象的则称为<strong>年老代</strong></p>
+<h4 id="老不死对象"><a href="#老不死对象" class="headerlink" title="老不死对象"></a>老不死对象</h4><p>这一类对象存活率非常高，因为它们大多是从新生代转过来的。</p>
+<p>通常情况下，以下两种情况发生的时候，对象会从新生代区域转到年老带区域。</p>
+<p>​     <strong>1、</strong>在新生代里的每一个对象，都会有一个<strong>年龄</strong>，当这些对象的年龄到达一定程度时（年龄就是熬过的GC次数，每次GC如果对象存活下来，则年龄加1），则会被转到年老代，而这个转入年老代的年龄值，一般在JVM中是可以设置的。</p>
+<p>​     <strong>2、</strong>在新生代存活对象占用的内存超过10%时，则多余的对象会放入年老代。这种时候，年老代就是新生代的“备用仓库”。</p>
+<p>​     针对老不死对象的特性，显然不再适合使用复制算法，因为它的存活率太高，而且不要忘了，如果年老代再使用复制算法，它可是没有备用仓库的。因此一般针对<strong>老不死对象只能采用标记/整理或者标记/清除算法</strong>。</p>
+<h4 id="方法区的对象回收（不灭对象）"><a href="#方法区的对象回收（不灭对象）" class="headerlink" title="方法区的对象回收（不灭对象）"></a>方法区的对象回收（不灭对象）</h4><p>不灭对象存在于方法区，在我们常用的hotspot虚拟机（JDK默认的JVM）中，方法区也被亲切的称为<strong>永久代</strong>，由于都没有“备用仓库”，二者都是只能使用标记/清除和标记/整理算法</p>
+<h4 id="回收的时机"><a href="#回收的时机" class="headerlink" title="回收的时机"></a>回收的时机</h4><p>JVM在进行GC时，并非每次都对上面三个内存区域一起回收的，大部分时候回收的都是指新生代。因此GC按照回收的区域又分了两种类型：</p>
+<p><strong>普通GC（minor GC）</strong>：只针对新生代区域的GC。</p>
+<p><strong>全局GC（major GC or Full GC）</strong>：针对年老代的GC，偶尔伴随对新生代的GC以及对永久代的GC。</p>
+<p>由于年老代与永久代相对来说GC效果不好，而且二者的内存使用增长速度也慢，因此一般情况下，需要经过好几次普通GC，才会触发一次全局GC</p>
+<h2 id="相关文章"><a href="#相关文章" class="headerlink" title="相关文章"></a>相关文章</h2><p>感谢各位大佬！</p>
+</article><div class="post-copyright"><div class="post-copyright__author"><span class="post-copyright-meta">文章作者: </span><span class="post-copyright-info"><a href="mailto:undefined">Er BaiShao</a></span></div><div class="post-copyright__type"><span class="post-copyright-meta">文章链接: </span><span class="post-copyright-info"><a href="https://qypone.github.io/posts/bffdd007/">https://qypone.github.io/posts/bffdd007/</a></span></div><div class="post-copyright__notice"><span class="post-copyright-meta">版权声明: </span><span class="post-copyright-info">本博客所有文章除特别声明外，均采用 <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank">CC BY-NC-SA 4.0</a> 许可协议。转载请注明来自 <a href="https://qypone.github.io" target="_blank">Er BaiShao</a>！</span></div></div><div class="tag_share"><div class="post-meta__tag-list"><a class="post-meta__tags" href="/tags/java/">java</a></div><div class="post_share"><div class="social-share" data-image="/img/go.jpg" data-sites="facebook,twitter,wechat,weibo"></div><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/social-share.js/dist/css/share.min.css" media="print" onload="this.media='all'"><script src="https://cdn.jsdelivr.net/npm/social-share.js/dist/js/social-share.min.js" defer></script></div></div><nav class="pagination-post" id="pagination"><div class="prev-post pull-left"><a href="/posts/bffdd010/"><img class="prev-cover" src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/img/go.jpg" onerror="onerror=null;src='/img/404.jpg'" alt="cover of previous post"><div class="pagination-info"><div class="label">上一篇</div><div class="prev_info">常用GC（Gabage Collection）</div></div></a></div><div class="next-post pull-right"><a href="/posts/2021Final/"><img class="next-cover" src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="https://picsum.photos/498" onerror="onerror=null;src='/img/404.jpg'" alt="cover of next post"><div class="pagination-info"><div class="label">下一篇</div><div class="next_info">2021打怪获取的经验</div></div></a></div></nav><div class="relatedPosts"><div class="headline"><i class="fas fa-thumbs-up fa-fw"></i><span>相关推荐</span></div><div class="relatedPosts-list"><div><a href="/posts/bffdd002/" title="java内存模型（Java Memory Model，JMM）"><img class="cover" src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/img/go.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-12-26</div><div class="title">java内存模型（Java Memory Model，JMM）</div></div></a></div><div><a href="/posts/bffdd001/" title="java类加载器"><img class="cover" src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/img/go.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-12-25</div><div class="title">java类加载器</div></div></a></div><div><a href="/posts/bffdd003/" title="java判等解析"><img class="cover" src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/img/go.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-12-16</div><div class="title">java判等解析</div></div></a></div><div><a href="/posts/bffdd004/" title="java语言"><img class="cover" src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/img/go.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-12-23</div><div class="title">java语言</div></div></a></div><div><a href="/posts/bffdd005/" title="JVM命令行工具"><img class="cover" src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/img/go.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2021-12-26</div><div class="title">JVM命令行工具</div></div></a></div><div><a href="/posts/jvm-gc-log/" title="简单GC日志分析和调优例子"><img class="cover" src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/img/go.jpg" alt="cover"><div class="content is-center"><div class="date"><i class="far fa-calendar-alt fa-fw"></i> 2022-01-12</div><div class="title">简单GC日志分析和调优例子</div></div></a></div></div></div></div><div class="aside-content" id="aside-content"><div class="card-widget card-info"><div class="is-center"><div class="avatar-img"><img src= "data:image/gif;base64,R0lGODdhAQABAPAAAMPDwwAAACwAAAAAAQABAAACAkQBADs=" data-lazy-src="/img/touxiang.png" onerror="this.onerror=null;this.src='/img/friend_404.gif'" alt="avatar"/></div><div class="author-info__name">Er BaiShao</div><div class="author-info__description">技术文章、生活感悟</div></div><div class="card-info-data"><div class="card-info-data-item is-center"><a href="/archives/"><div class="headline">文章</div><div class="length-num">39</div></a></div><div class="card-info-data-item is-center"><a href="/tags/"><div class="headline">标签</div><div class="length-num">10</div></a></div><div class="card-info-data-item is-center"><a href="/categories/"><div class="headline">分类</div><div class="length-num">14</div></a></div></div><a class="button--animated" id="card-info-btn" target="_blank" rel="noopener" href="https://github.com/qypone/qypone.github.io"><i class="fab fa-github"></i><span>my github</span></a></div><div class="card-widget card-announcement"><div class="item-headline"><i class="fas fa-bullhorn card-announcement-animation"></i><span>公告</span></div><div class="announcement_content">元气满满的一天</div></div><div class="sticky_layout"><div class="card-widget" id="card-toc"><div class="item-headline"><i class="fas fa-stream"></i><span>目录</span></div><div class="toc-content"><ol class="toc"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E6%9C%89GC"><span class="toc-number">1.</span> <span class="toc-text">为什么要有GC</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%9F%BA%E6%9C%AC%E5%8E%9F%E7%90%86-%E6%A0%87%E8%AE%B0%E6%B8%85%E9%99%A4%E7%AE%97%E6%B3%95"><span class="toc-number">2.</span> <span class="toc-text">基本原理-标记清除算法</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%88%86%E4%BB%A3"><span class="toc-number">3.</span> <span class="toc-text">分代</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%8F%AF%E4%BB%A5%E4%BD%9C%E4%B8%BA-GC-Roots-%E7%9A%84%E5%AF%B9%E8%B1%A1"><span class="toc-number">4.</span> <span class="toc-text">可以作为 GC Roots 的对象</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%B8%B8%E8%A7%81%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E7%AE%97%E6%B3%95"><span class="toc-number">5.</span> <span class="toc-text">常见垃圾回收算法</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A0%87%E8%AE%B0%E6%B8%85%E9%99%A4"><span class="toc-number">5.1.</span> <span class="toc-text">标记清除</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%BF%87%E7%A8%8B"><span class="toc-number">5.1.1.</span> <span class="toc-text">过程</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%88%86%E9%85%8D"><span class="toc-number">5.1.2.</span> <span class="toc-text">分配</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%90%88%E5%B9%B6"><span class="toc-number">5.1.3.</span> <span class="toc-text">合并</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BC%BA%E7%82%B9"><span class="toc-number">5.1.4.</span> <span class="toc-text">缺点</span></a></li></ol></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%A4%8D%E5%88%B6%E7%AE%97%E6%B3%95"><span class="toc-number">5.2.</span> <span class="toc-text">复制算法</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E6%A0%87%E8%AE%B0%E6%95%B4%E7%90%86"><span class="toc-number">5.3.</span> <span class="toc-text">标记整理</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%BF%87%E7%A8%8B-1"><span class="toc-number">5.3.1.</span> <span class="toc-text">过程</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%AE%9E%E7%8E%B0"><span class="toc-number">5.3.2.</span> <span class="toc-text">实现</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E7%BC%BA%E7%82%B9-1"><span class="toc-number">5.3.3.</span> <span class="toc-text">缺点</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#GC%E7%AE%97%E6%B3%95%E6%80%BB%E7%BB%93"><span class="toc-number">6.</span> <span class="toc-text">GC算法总结</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E5%88%86%E4%BB%A3%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6"><span class="toc-number">7.</span> <span class="toc-text">分代垃圾回收</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AF%B9%E8%B1%A1%E5%88%86%E7%B1%BB"><span class="toc-number">7.1.</span> <span class="toc-text">对象分类</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%AF%B9%E8%B1%A1%E5%AF%B9%E5%BA%94%E7%9A%84%E5%86%85%E5%AD%98%E5%8C%BA%E5%9F%9F"><span class="toc-number">7.2.</span> <span class="toc-text">对象对应的内存区域</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#JAVA%E5%A0%86%E7%9A%84%E5%AF%B9%E8%B1%A1%E5%9B%9E%E6%94%B6"><span class="toc-number">7.3.</span> <span class="toc-text">JAVA堆的对象回收</span></a><ol class="toc-child"><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%A4%AD%E6%8A%98%E5%AF%B9%E8%B1%A1"><span class="toc-number">7.3.1.</span> <span class="toc-text">夭折对象</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E8%80%81%E4%B8%8D%E6%AD%BB%E5%AF%B9%E8%B1%A1"><span class="toc-number">7.3.2.</span> <span class="toc-text">老不死对象</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E6%96%B9%E6%B3%95%E5%8C%BA%E7%9A%84%E5%AF%B9%E8%B1%A1%E5%9B%9E%E6%94%B6%EF%BC%88%E4%B8%8D%E7%81%AD%E5%AF%B9%E8%B1%A1%EF%BC%89"><span class="toc-number">7.3.3.</span> <span class="toc-text">方法区的对象回收（不灭对象）</span></a></li><li class="toc-item toc-level-4"><a class="toc-link" href="#%E5%9B%9E%E6%94%B6%E7%9A%84%E6%97%B6%E6%9C%BA"><span class="toc-number">7.3.4.</span> <span class="toc-text">回收的时机</span></a></li></ol></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E7%9B%B8%E5%85%B3%E6%96%87%E7%AB%A0"><span class="toc-number">8.</span> <span class="toc-text">相关文章</span></a></li></ol></div></div></div></div></main><footer id="footer"><div id="footer-wrap"><div class="copyright">&copy;2016 - 2022 By Er BaiShao</div><div class="framework-info"><span>框架 </span><a target="_blank" rel="noopener" href="https://hexo.io">Hexo</a><span class="footer-separator">|</span><span>主题 </span><a target="_blank" rel="noopener" href="https://github.com/jerryc127/hexo-theme-butterfly">Butterfly</a></div><div class="footer_custom_text">元气满满的一天</div></div></footer></div><div id="rightside"><div id="rightside-config-hide"><button id="readmode" type="button" title="阅读模式"><i class="fas fa-book-open"></i></button><button id="darkmode" type="button" title="浅色和深色模式转换"><i class="fas fa-adjust"></i></button><button id="hide-aside-btn" type="button" title="单栏和双栏切换"><i class="fas fa-arrows-alt-h"></i></button></div><div id="rightside-config-show"><button id="rightside_config" type="button" title="设置"><i class="fas fa-cog fa-spin"></i></button><button class="close" id="mobile-toc-button" type="button" title="目录"><i class="fas fa-list-ul"></i></button><button id="go-up" type="button" title="回到顶部"><i class="fas fa-arrow-up"></i></button></div></div><div><script src="/js/utils.js"></script><script src="/js/main.js"></script><script src="https://cdn.jsdelivr.net/npm/vanilla-lazyload/dist/lazyload.iife.min.js"></script><div class="js-pjax"></div><script async data-pjax src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script></div></body></html>
